@@ -4,6 +4,7 @@ import fitz
 import docx
 import re
 
+@st.cache_resource
 def load_summarizer():
     return pipeline("summarization", model="csebuetnlp/mT5_multilingual_XLSum", use_fast=False)
 
@@ -27,6 +28,10 @@ def extract_text(file):
     else:
         return ""
 
+def trim_text(text, max_words=300):
+    words = text.split()
+    return ' '.join(words[:max_words])
+
 st.set_page_config(page_title="Indic Document Summarizer + Q&A", layout="centered")
 st.title("Indic Document Summarizer + Q&A")
 st.markdown("Upload a `.txt`, `.pdf`, or `.docx` file in English or Indic languages. Get a summary and ask questions.")
@@ -37,6 +42,7 @@ if uploaded_file:
     with st.spinner("Reading file..."):
         doc_text = extract_text(uploaded_file)
         doc_text = clean_text(doc_text)
+        doc_text = trim_text(doc_text)
 
     if len(doc_text.strip()) < 20:
         st.warning("The file doesn't contain enough readable text.")
@@ -44,7 +50,7 @@ if uploaded_file:
         if st.button("Generate Summary"):
             with st.spinner("Summarizing..."):
                 try:
-                    result = summarizer(doc_text[:1000])[0]
+                    result = summarizer(doc_text)[0]
                     st.subheader("Summary:")
                     st.markdown(result['summary_text'])
                 except Exception as e:
@@ -54,7 +60,7 @@ if uploaded_file:
         if user_question and st.button("Get Answer"):
             with st.spinner("Generating answer..."):
                 try:
-                    qa_prompt = f"{doc_text[:1000]}\n\nQuestion: {user_question}\n\nAnswer:"
+                    qa_prompt = f"{doc_text}\n\nQuestion: {user_question}\n\nAnswer:"
                     answer = summarizer(qa_prompt)[0]['summary_text']
                     st.subheader("Answer:")
                     st.markdown(answer)
