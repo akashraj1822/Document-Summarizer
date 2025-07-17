@@ -3,9 +3,8 @@ from transformers import pipeline
 import fitz
 import docx
 
-@st.cache_resource
 def load_summarizer():
-    return pipeline("summarization", model="sshleifer/distilbart-cnn-12-6")
+    return pipeline("summarization", model="t5-small", device=-1)
 
 summarizer = load_summarizer()
 
@@ -20,12 +19,23 @@ def extract_text(file):
         return "\n".join([para.text for para in doc.paragraphs])
     return ""
 
-st.set_page_config(page_title="Doc Summarizer + Q&A", layout="centered")
-st.title("Document Summarizer + Q&A")
+st.set_page_config(page_title="Indic Doc Summarizer+Q&A", layout="centered")
+st.title("Indic Document Summarizer+Q&A")
 
-st.markdown("Upload a `.txt`, `.pdf`, or `.docx` document in English to get a summary and ask questions about it.")
+st.markdown("Upload a `.txt`, `.pdf`, or `.docx` document in Hindi, Tamil, Telugu, Bengali, or English and get a summary and ask questions.")
 
 uploaded_file = st.file_uploader("Upload your document", type=["txt", "pdf", "docx"])
+
+language_map = {
+    "Hindi": "hi",
+    "Tamil": "ta",
+    "Telugu": "te",
+    "Bengali": "bn",
+    "English": "en"
+}
+
+selected_language = st.selectbox("Document Language", list(language_map.keys()))
+language_code = language_map[selected_language]
 
 if uploaded_file:
     with st.spinner("Reading file..."):
@@ -37,7 +47,7 @@ if uploaded_file:
         if st.button("Generate Summary"):
             with st.spinner("Summarizing..."):
                 try:
-                    result = summarizer(doc_text[:1000], max_length=130, min_length=30, do_sample=False)[0]
+                    result = summarizer(doc_text[:4000], max_length=512, clean_up_tokenization_spaces=True)[0]
                     st.success("Summary:")
                     st.markdown(result['summary_text'])
                 except Exception as e:
@@ -47,8 +57,8 @@ if uploaded_file:
         if user_question and st.button("Get Answer"):
             with st.spinner("Generating answer..."):
                 try:
-                    qa_prompt = f"{doc_text[:1000]}\n\nQuestion: {user_question}\n\nAnswer:"
-                    answer = summarizer(qa_prompt, max_length=64, min_length=10, do_sample=False)[0]['summary_text']
+                    qa_prompt = f"{doc_text[:4000]}\n\nQuestion: {user_question}\n\nAnswer:"
+                    answer = summarizer(qa_prompt, max_length=128)[0]['summary_text']
                     st.success("Answer:")
                     st.markdown(answer)
                 except Exception as e:
