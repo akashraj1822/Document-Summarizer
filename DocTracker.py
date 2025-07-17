@@ -6,7 +6,7 @@ import re
 
 @st.cache_resource
 def load_summarizer():
-    return pipeline("summarization", model="csebuetnlp/mT5_multilingual_XLSum", use_fast=False)
+    return pipeline("summarization", model="google/mt5-small", use_fast=False)
 
 summarizer = load_summarizer()
 
