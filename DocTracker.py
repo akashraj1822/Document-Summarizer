@@ -2,12 +2,18 @@ import streamlit as st
 from transformers import pipeline
 import fitz
 import docx
+import re
+import torch
 
-@st.cache_resource
 def load_summarizer():
-    return pipeline("summarization", model="t5-small")
+    return pipeline("summarization", model="csebuetnlp/mT5_multilingual_XLSum", torch_dtype=torch.float32)
 
 summarizer = load_summarizer()
+
+def clean_text(text):
+    text = text.strip()
+    text = re.sub(r'\s+', ' ', text)
+    return text
 
 def extract_text(file):
     file_type = file.name.split('.')[-1]
@@ -24,13 +30,14 @@ def extract_text(file):
 
 st.set_page_config(page_title="Indic Document Summarizer + Q&A", layout="centered")
 st.title("Indic Document Summarizer + Q&A")
-st.markdown("Upload a `.txt`, `.pdf`, or `.docx` file in English. Get a quick summary and ask questions.")
+st.markdown("Upload a `.txt`, `.pdf`, or `.docx` file in English or Indic languages. Get a summary and ask questions.")
 
 uploaded_file = st.file_uploader("Upload your document", type=["txt", "pdf", "docx"])
 
 if uploaded_file:
     with st.spinner("Reading file..."):
         doc_text = extract_text(uploaded_file)
+        doc_text = clean_text(doc_text)
 
     if len(doc_text.strip()) < 20:
         st.warning("The file doesn't contain enough readable text.")
@@ -38,7 +45,7 @@ if uploaded_file:
         if st.button("Generate Summary"):
             with st.spinner("Summarizing..."):
                 try:
-                    result = summarizer(doc_text[:4000], max_length=100, min_length=30)[0]
+                    result = summarizer(doc_text[:1000])[0]
                     st.subheader("Summary:")
                     st.markdown(result['summary_text'])
                 except Exception as e:
@@ -48,8 +55,8 @@ if uploaded_file:
         if user_question and st.button("Get Answer"):
             with st.spinner("Generating answer..."):
                 try:
-                    qa_prompt = f"{doc_text[:4000]}\n\nQuestion: {user_question}\n\nAnswer:"
-                    answer = summarizer(qa_prompt, max_length=100, min_length=30)[0]['summary_text']
+                    qa_prompt = f"{doc_text[:1000]}\n\nQuestion: {user_question}\n\nAnswer:"
+                    answer = summarizer(qa_prompt)[0]['summary_text']
                     st.subheader("Answer:")
                     st.markdown(answer)
                 except Exception as e:
